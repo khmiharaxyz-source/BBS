@@ -32,7 +32,7 @@
         .board-card { background: #fff; border: 1px solid #0047bd; padding: 15px; margin-bottom: 10px; cursor: pointer; }
         .board-card h2 { margin: 0; color: #0047bd; font-size: 1.2em; }
         .thread-link { background: #fff; border: 1px solid #ccc; padding: 12px; margin-bottom: 8px; cursor: pointer; display: block; text-decoration: none; color: inherit; position: relative; }
-        .thread-header { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: column; padding-right: 60px; } /* 削除ボタン用に右余白 */
+        .thread-header { display: flex; justify-content: space-between; align-items: flex-start; flex-direction: column; padding-right: 60px; }
         .thread-meta { font-size: 0.75em; color: #888; margin-top: 5px; }
         .nav-btn { background: #0047bd; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
         .nav-btn:disabled { background: #999 !important; cursor: not-allowed; }
@@ -46,7 +46,6 @@
         .thread-nav-bar { position: sticky; top: 0; background-color: #fff; padding: 10px 0; z-index: 100; display: flex; gap: 8px; border-bottom: 1px solid #ccc; margin-bottom: 10px; }
         .ban-list-table { width: 100%; border-collapse: collapse; font-size: 0.8em; margin-top: 10px; background: #fff; }
         .ban-list-table th, .ban-list-table td { border: 1px solid #ccc; padding: 5px; text-align: left; }
-        /* スレッド削除ボタンを日時と被らない位置（左）に配置 */
         .thread-del-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #f0f0f5; border: 1px solid #ccc; padding: 5px 8px; font-size: 0.7em; border-radius: 3px; cursor: pointer; }
         @media (min-width: 600px) { .container { padding: 20px; } .thread-header { flex-direction: row; } }
     </style>
@@ -59,7 +58,7 @@
             <img src="logo.png" alt="mihara BBS" class="site-logo">
             <div class="site-summary">
                 mihara BBSは多分世界初のAIで作られた掲示板サイトです。<br>
-                アプデ告知用Twitter（仮）<a href="https://twitter.com/AAA1413070" target="_blank" class="auto-link">https://twitter.com/AAA1413070</a><br>
+                サポート用Twitter（仮）<a href="https://twitter.com/AAA1413070" target="_blank" class="auto-link">https://twitter.com/AAA1413070</a><br>
                 <div class="rules">利用規約: 誹謗中傷・エッチ・宣伝・転載その他日本の法律に違反する物は禁止です。本掲示板で発生したトラブル等の責任は負いかねます。</div>
             </div>
             <div id="news-container" class="news-area">
@@ -123,18 +122,16 @@
     </div>
 
     <div id="global-footer" class="inner-footer">
-        <div id="portal-only-footer">
-            当サイトはリンクフリーです、バナーはご自由にお使いください。<br>
-            <img src="banner.png" alt="mihara BBSバナー" class="footer-banner">
-            <div style="margin-top: 10px;">
-                <span id="admin-indicator" style="font-size: 0.8em; color: #aaa;">一般ユーザーモード</span><br>
-                <div id="login-controls">
-                    <input type="text" id="admin-email" placeholder="email" style="width: 140px; padding: 4px; font-size: 11px !important; border: 1px solid #ddd;">
-                    <input type="password" id="admin-pass" placeholder="pass" style="width: 100px; padding: 4px; font-size: 11px !important; border: 1px solid #ddd;">
-                    <button onclick="loginAdmin()" style="font-size: 11px; padding: 4px 8px; cursor: pointer;">Login</button>
-                </div>
-                <button id="logout-btn" class="hidden" onclick="logoutAdmin()" style="font-size: 11px; margin-top: 5px; cursor: pointer;">ログアウト</button>
+        当サイトはリンクフリーです、バナーはご自由にお使いください。<br>
+        <img src="banner.png" alt="mihara BBSバナー" class="footer-banner">
+        <div style="margin-top: 10px;">
+            <span id="admin-indicator" style="font-size: 0.8em; color: #aaa;">一般ユーザーモード</span><br>
+            <div id="login-controls">
+                <input type="text" id="admin-email" placeholder="email" style="width: 140px; padding: 4px; font-size: 11px !important; border: 1px solid #ddd;">
+                <input type="password" id="admin-pass" placeholder="pass" style="width: 100px; padding: 4px; font-size: 11px !important; border: 1px solid #ddd;">
+                <button onclick="loginAdmin()" style="font-size: 11px; padding: 4px 8px; cursor: pointer;">Login</button>
             </div>
+            <button id="logout-btn" class="hidden" onclick="logoutAdmin()" style="font-size: 11px; margin-top: 5px; cursor: pointer;">ログアウト</button>
         </div>
     </div>
 </div>
@@ -168,7 +165,6 @@
             fullBanList = snap.val() || {};
             isBanned = !!fullBanList[myId.replace("ID:", "")];
             renderBanTable();
-            if(currentThreadKey) refreshThread();
         });
 
         auth.onAuthStateChanged(user => {
@@ -185,63 +181,124 @@
         syncNews();
     }
 
-    // --- スレッド表示・一覧 (12時間削除ロジック追加) ---
+    // --- 表示切り替え (フッター表示制限修正) ---
+    function showPortal() {
+        document.getElementById('portal-view').classList.remove('hidden');
+        document.getElementById('global-footer').classList.remove('hidden'); // フッター表示
+        document.getElementById('index-view').classList.add('hidden');
+        document.getElementById('thread-view').classList.add('hidden');
+        document.getElementById('confirm-view').classList.add('hidden');
+    }
+
+    function openBoard(name) {
+        currentBoard = name;
+        document.getElementById('portal-view').classList.add('hidden');
+        document.getElementById('global-footer').classList.add('hidden'); // フッター隠す
+        document.getElementById('index-view').classList.remove('hidden');
+        document.getElementById('thread-view').classList.add('hidden');
+        document.getElementById('current-board-name').innerText = name + "板";
+        document.getElementById('board-description-area').innerText = BOARD_INFO[name];
+        renderIndex();
+    }
+
+    function showThread(k, t) {
+        currentThreadKey = k;
+        document.getElementById('index-view').classList.add('hidden');
+        document.getElementById('global-footer').classList.add('hidden'); // フッター隠す
+        document.getElementById('thread-view').classList.remove('hidden');
+        document.getElementById('view-title').innerText = filterWords(t);
+        db.ref('boards/' + currentBoard + '/' + k + '/posts').on('value', renderResponses);
+        updatePostArea();
+        window.scrollTo(0,0);
+    }
+
+    // --- スレッド一覧描画 (12h削除・最新順) ---
     function renderIndex() {
         const container = document.getElementById('thread-list-container');
         const now = new Date().getTime();
-        const limit = 12 * 60 * 60 * 1000; // 12時間
-
+        const limit = 12 * 60 * 60 * 1000;
         db.ref('boards/' + currentBoard).off();
         db.ref('boards/' + currentBoard).on('value', (snapshot) => {
             const data = snapshot.val(); container.innerHTML = ""; if (!data) return;
-            
-            // スレッド一覧を取得し、最新更新順にソート
             const threads = Object.keys(data).map(key => ({ ...data[key], key: key }))
                             .sort((a, b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime());
-            
             threads.forEach(th => {
-                const lastTime = new Date(th.lastUpdate).getTime();
-                // 12時間チェック
-                if (now - lastTime > limit) {
-                    db.ref('boards/' + currentBoard + '/' + th.key).remove();
-                    return; // 描画しない
+                if (now - new Date(th.lastUpdate).getTime() > limit) {
+                    db.ref('boards/' + currentBoard + '/' + th.key).remove(); return;
                 }
-
-                const div = document.createElement('div'); 
-                div.className = "thread-link";
+                const div = document.createElement('div'); div.className = "thread-link";
                 div.onclick = () => showThread(th.key, th.title);
-                
-                // 削除ボタンを日時と重ならないように個別に配置
-                div.innerHTML = `
-                    <div class="thread-header">
-                        <h3 style="color:red;margin:0;">${filterWords(th.title)}</h3>
-                        <div class="thread-meta">${Object.values(th.posts||{}).length}レス | ${th.lastUpdate}</div>
-                    </div>
-                    ${isAdmin ? `<button class="thread-del-btn" onclick="event.stopPropagation(); deleteThread('${th.key}')">削除</button>` : ""}
-                `;
+                div.innerHTML = `<div class="thread-header"><h3 style="color:red;margin:0;">${filterWords(th.title)}</h3><div class="thread-meta">${Object.values(th.posts||{}).length}レス | ${th.lastUpdate}</div></div>
+                    ${isAdmin ? `<button class="thread-del-btn" onclick="event.stopPropagation(); deleteThread('${th.key}')">削除</button>` : ""}`;
                 container.appendChild(div);
             });
         });
     }
 
-    // --- 以下、前回の認証・BAN機能を維持 ---
+    // --- レス投稿タイマー (リセット・二重投稿修正) ---
+    function handleResInput() {
+        const a = document.getElementById('res-content'), b = document.getElementById('btn-post-res'), l = document.getElementById('res-timer-label');
+        if(!a || !b) return;
+        checkCharLimit('res-content', 'res-char-info');
+
+        // 文字が変更されるたびに既存タイマーを破棄してリセット
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        b.disabled = true;
+
+        if(!a.value.trim()) {
+            l.innerText = "本文を入力してください";
+            return;
+        }
+
+        let s = 3;
+        l.innerText = `あと${s}秒で投稿可能`;
+        countdownInterval = setInterval(() => {
+            s--;
+            if(s > 0) {
+                l.innerText = `あと${s}秒で投稿可能`;
+            } else {
+                l.innerText = "投稿可能";
+                b.disabled = false;
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }, 1000);
+    }
+
+    async function postResponse() {
+        if(isBanned) return alert("BANされています");
+        const a = document.getElementById('res-content'), b = document.getElementById('btn-post-res'), l = document.getElementById('res-timer-label');
+        const n = isAdmin ? "三原" : (document.getElementById('res-name').value.trim() || DEFAULT_NAMES[currentBoard]);
+        const body = a.value, time = new Date().toLocaleString(), file = document.getElementById('res-file').files[0];
+        
+        b.disabled = true; // 即座に無効化
+        if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+
+        const s = (img) => {
+            db.ref('boards/' + currentBoard + '/' + currentThreadKey + '/posts').push({ name: n, date: time, id: myId, body, img: img || "", deleted: false });
+            db.ref('boards/' + currentBoard + '/' + currentThreadKey).update({ lastUpdate: time });
+            a.value = ""; if(document.getElementById('res-file')) document.getElementById('res-file').value = "";
+            l.innerText = "本文を入力してください";
+            checkCharLimit('res-content', 'res-char-info');
+        };
+        if(file) { const r = new FileReader(); r.onload = (e) => s(e.target.result); r.readAsDataURL(file); } else s("");
+    }
+
+    // --- その他管理者機能等 ---
     function loginAdmin() {
-        const email = document.getElementById('admin-email').value;
-        const pass = document.getElementById('admin-pass').value;
-        auth.signInWithEmailAndPassword(email, pass).catch(e => alert("ログイン失敗"));
+        const e = document.getElementById('admin-email').value, p = document.getElementById('admin-pass').value;
+        auth.signInWithEmailAndPassword(e, p).catch(() => alert("ログイン失敗"));
     }
     function logoutAdmin() { auth.signOut(); }
-    function showPortal() { document.getElementById('portal-view').classList.remove('hidden'); document.getElementById('global-footer').classList.remove('hidden'); document.getElementById('index-view').classList.add('hidden'); document.getElementById('thread-view').classList.add('hidden'); }
-    function openBoard(name) { currentBoard = name; document.getElementById('portal-view').classList.add('hidden'); document.getElementById('index-view').classList.remove('hidden'); document.getElementById('thread-view').classList.add('hidden'); document.getElementById('current-board-name').innerText = name + "板"; document.getElementById('board-description-area').innerText = BOARD_INFO[name]; renderIndex(); }
     function renderPortal() { const p = document.getElementById('board-portal'); p.innerHTML = ""; Object.keys(BOARD_INFO).forEach(n => { const d = document.createElement('div'); d.className="board-card"; d.onclick=()=>openBoard(n); d.innerHTML=`<h2>${n}板</h2>`; p.appendChild(d); }); }
-    function syncNews() { db.ref('site_news').on('value', s => { const d = s.val() || {text:"",date:""}; document.getElementById('news-text').innerText = d.text; document.getElementById('news-date').innerText = "更新:"+d.date; }); }
+    function syncNews() { db.ref('site_news').on('value', s => { const d = s.val() || {text:"",date:""}; document.getElementById('news-text').innerText = d.text; document.getElementById('news-date').innerText = "最終更新: "+d.date; }); }
     function saveNews() { db.ref('site_news').set({ text: document.getElementById('news-input').value, date: new Date().toLocaleString() }); }
-    function showThread(k, t) { currentThreadKey = k; document.getElementById('index-view').classList.add('hidden'); document.getElementById('thread-view').classList.remove('hidden'); document.getElementById('view-title').innerText = filterWords(t); db.ref('boards/' + currentBoard + '/' + k + '/posts').on('value', renderResponses); updatePostArea(); window.scrollTo(0,0); }
     function renderResponses(snap) { const list = document.getElementById('res-list'); const posts = Object.entries(snap.val() || {}).map(([k, v]) => ({...v, resKey: k})).sort((a, b) => new Date(a.date) - new Date(b.date)); list.innerHTML = ""; posts.forEach((p, i) => { const num = i + 1; const sid = p.id.replace("ID:", ""); const isB = !!fullBanList[sid]; const div = document.createElement('div'); div.className = "res-item"; div.id = `res-${num}`; div.innerHTML = `<div class="info">${num}：<span class="${p.name==='三原'?'name admin-name':'name'}">${p.name}</span>：${p.date} <b>${p.id}</b></div><div class="res-ops"><span class="op-btn" onclick="insertAnchor(${num})">返信</span>${isAdmin ? `<span class="op-btn admin-op-btn ${isB?'unban-btn':''}" onclick="toggleBan('${p.id}','${currentBoard}','${p.body}')">${isB?'解除':'出禁'}</span>` : ""}${(p.id === myId || isAdmin) ? `<span class="op-btn" onclick="deletePost('${p.resKey}')">削除</span>` : ""}</div>${p.img && !p.deleted ? `<img src="${p.img}" class="uploaded-img">` : ""}<div class="aa">${processText(p.body, p.deleted)}</div>`; list.appendChild(div); }); }
     function toggleBan(tid, b, body) { if(!isAdmin) return; const sid = tid.replace("ID:", ""); const ref = db.ref('ban_list/' + sid); if (fullBanList[sid]) { if(confirm("解除？")) ref.remove(); } else { if(confirm("出禁？")) ref.set({ bannedAt: new Date().toLocaleString(), board: b, body: body.substring(0,50), id: tid }); } }
     function renderBanTable() { const b = document.getElementById('ban-list-body'); b.innerHTML = ""; Object.keys(fullBanList).forEach(k => { const d = fullBanList[k]; const tr = document.createElement('tr'); tr.innerHTML = `<td>${d.bannedAt}</td><td>${d.board}</td><td>${d.id}</td><td>${d.body}</td><td><button onclick="toggleBan('${d.id}')">解除</button></td>`; b.appendChild(tr); }); }
-    function handleResInput() { const a = document.getElementById('res-content'), b = document.getElementById('btn-post-res'), l = document.getElementById('res-timer-label'); if(!a || !b) return; checkCharLimit('res-content', 'res-char-info'); if(!a.value) { b.disabled = true; l.innerText = "本文を入力してください"; return; } if(countdownInterval) return; let s = 3; b.disabled = true; countdownInterval = setInterval(() => { s--; if(s > 0) l.innerText = `あと${s}秒`; else { l.innerText = "投稿可"; b.disabled = false; clearInterval(countdownInterval); countdownInterval = null; } }, 1000); }
-    async function postResponse() { if(isBanned) return alert("BAN"); const a = document.getElementById('res-content'), n = isAdmin ? "三原" : (document.getElementById('res-name').value.trim() || DEFAULT_NAMES[currentBoard]); const body = a.value, time = new Date().toLocaleString(), file = document.getElementById('res-file').files[0]; const s = (img) => { db.ref('boards/' + currentBoard + '/' + currentThreadKey + '/posts').push({ name: n, date: time, id: myId, body, img: img || "", deleted: false }); db.ref('boards/' + currentBoard + '/' + currentThreadKey).update({ lastUpdate: time }); a.value = ""; handleResInput(); }; if(file) { const r = new FileReader(); r.onload = (e) => s(e.target.result); r.readAsDataURL(file); } else s(""); }
     function showConfirm() { if(isBanned) return alert("BAN"); const t = document.getElementById('new-title').value, c = document.getElementById('new-content').value; if(!t || !c) return alert("入力"); const f = document.getElementById('new-file').files[0]; const p = (img) => { pendingThread = { title:t, content:c, img }; document.getElementById('index-view').classList.add('hidden'); document.getElementById('confirm-view').classList.remove('hidden'); let s = 5; const b = document.getElementById('btn-submit-thread'); b.disabled = true; const it = setInterval(() => { s--; document.getElementById('timer-msg').innerText = `あと ${s} 秒`; if(s <= 0) { clearInterval(it); b.disabled = false; document.getElementById('timer-msg').innerText = "投稿可"; } }, 1000); }; if(f) { const r = new FileReader(); r.onload = (e) => p(e.target.result); r.readAsDataURL(f); } else p(""); }
     function submitNewThread() { const n = isAdmin ? "三原" : (document.getElementById('new-name').value.trim() || DEFAULT_NAMES[currentBoard]); const time = new Date().toLocaleString(), newRef = db.ref('boards/' + currentBoard).push(); newRef.set({ title: pendingThread.title, lastUpdate: time, posts: { "first": { name: n, date: time, id: myId, body: pendingThread.content, img: pendingThread.img || "", deleted: false } } }).then(() => { document.getElementById('confirm-view').classList.add('hidden'); showThread(newRef.key, pendingThread.title); }); }
     function cancelNewThread() { document.getElementById('confirm-view').classList.add('hidden'); document.getElementById('index-view').classList.remove('hidden'); }
