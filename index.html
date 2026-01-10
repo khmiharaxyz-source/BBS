@@ -49,6 +49,8 @@
             <img src="logo.png" alt="mihara BBS" class="site-logo">
             <div class="site-summary">
                 mihara BBSは多分世界初のAIで作られた掲示板サイトです。<br>
+                アプデ告知用Twitter（仮）<a href="https://twitter.com/AAA1413070" target="_blank" class="auto-link">https://twitter.com/AAA1413070</a><br>
+                アプデするとスレッドが全削除されるので是非。<br>
                 <div class="rules">利用規約: 誹謗中傷・エッチ・宣伝・転載その他日本の法律に違反する物は禁止です。本掲示板で発生した事件等は一切責任は負いかねます。</div>
             </div>
             <div id="board-portal"></div>
@@ -114,7 +116,6 @@
         messagingSenderId: "70498873463",
         appId: "1:70498873463:web:bb9f97221ab57c5565d672",
         measurementId: "G-PQSF4BHCT0",
-        // アジア・シンガポールサーバーの正しいURLを設定
         databaseURL: "https://mihara-bbs-cac0e-default-rtdb.asia-southeast1.firebasedatabase.app"
     };
 
@@ -224,7 +225,10 @@
 
     function renderResponses(snapshot) {
         const list = document.getElementById('res-list');
-        const posts = Object.entries(snapshot.val() || {}).map(([k, v]) => ({...v, resKey: k}));
+        // Firebaseのキー(pushされたユニークID)にかかわらず、登録時刻の昇順でソート
+        const rawData = snapshot.val() || {};
+        const posts = Object.entries(rawData).map(([k, v]) => ({...v, resKey: k}))
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         list.innerHTML = "";
         posts.forEach((p, i) => {
             const div = document.createElement('div');
@@ -274,14 +278,28 @@
         const content = document.getElementById('new-content').value;
         const file = document.getElementById('new-file').files[0];
         if(!title || !content) return alert("入力してください");
+        
         const proceed = (img) => {
             pendingThread = { title, content, img };
             document.getElementById('index-view').classList.add('hidden');
             document.getElementById('confirm-view').classList.remove('hidden');
-            let sec = 5; const btn = document.getElementById('btn-submit-thread'); btn.disabled = true;
+            
+            let sec = 5; 
+            const btn = document.getElementById('btn-submit-thread'); 
+            const msgArea = document.getElementById('timer-msg');
+            
+            btn.disabled = true; 
+            msgArea.innerText = `あと ${sec} 秒`; // 初期表示をタイマーにする
+            
             const timer = setInterval(() => {
-                sec--; document.getElementById('timer-msg').innerText = sec > 0 ? `あと ${sec} 秒` : "作成可能";
-                if(sec <= 0) { clearInterval(timer); btn.disabled = false; }
+                sec--; 
+                if(sec <= 0) { 
+                    clearInterval(timer); 
+                    msgArea.innerText = "作成可能";
+                    btn.disabled = false; 
+                } else {
+                    msgArea.innerText = `あと ${sec} 秒`;
+                }
             }, 1000);
         };
         if(file) { const r = new FileReader(); r.onload = (e) => proceed(e.target.result); r.readAsDataURL(file); } else proceed("");
