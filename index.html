@@ -57,9 +57,11 @@
         <div id="portal-view">
             <img src="logo.png" alt="mihara BBS" class="site-logo">
             <div class="site-summary">
-                mihara BBSは多分世界初のAIで作られた掲示板サイトです。<br>
-                サポート用Twitter（仮）<a href="https://twitter.com/AAA1413070" target="_blank" class="auto-link">https://twitter.com/AAA1413070</a><br>
-                <div class="rules">利用規約: 誹謗中傷・エッチ・宣伝・転載その他日本の法律に違反する物は禁止です。本掲示板で発生したトラブル等の責任は負いかねます。</div>
+                <div id="site-summary-text">読み込み中...</div>
+                <div id="admin-summary-edit" class="hidden" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
+                    <textarea id="summary-input" style="height: 100px; font-size: 14px !important;"></textarea>
+                    <button class="nav-btn" onclick="saveSummary()">サイト概要を更新</button>
+                </div>
             </div>
             <div id="news-container" class="news-area">
                 <div class="news-title">お知らせ</div>
@@ -87,6 +89,10 @@
             </div>
             <h1 id="current-board-name" style="clear:both; padding-top:10px; font-size: 1.4em;"></h1>
             <div id="board-description-area" style="margin-bottom:15px; font-size:0.85em; color:#444; border: 1px solid #ccc; padding: 10px; background: #fff; white-space: pre-wrap;"></div>
+            <div id="admin-board-desc-edit" class="hidden" style="margin-bottom:15px;">
+                <textarea id="board-desc-input" style="height: 80px; font-size: 14px !important;"></textarea>
+                <button class="nav-btn" onclick="saveBoardDesc()">板の概要を更新</button>
+            </div>
             <div class="post-form">
                 <strong>新規スレッド作成</strong><br>
                 タイトル: <input type="text" id="new-title" placeholder="タイトルを入力">
@@ -147,7 +153,7 @@
     const db = firebase.database();
     const auth = firebase.auth();
 
-    const BOARD_INFO = {
+    const BOARD_INFO_DEFAULT = {
         '雑談': '雑談する板です。雑にしゃべって下さい。',
         'AA絵一次': 'AAとか絵（オリジナル）の板です。AI絵は禁止です。',
         'AA絵二次': 'AAとか絵（二次創作）の板です。AI絵は禁止です。',
@@ -175,16 +181,18 @@
             document.getElementById('logout-btn').classList.toggle('hidden', !isAdmin);
             document.getElementById('admin-news-edit').classList.toggle('hidden', !isAdmin);
             document.getElementById('admin-ban-area').classList.toggle('hidden', !isAdmin);
+            document.getElementById('admin-summary-edit').classList.toggle('hidden', !isAdmin);
+            document.getElementById('admin-board-desc-edit').classList.toggle('hidden', !isAdmin);
         });
 
+        syncSummary();
         renderPortal();
         syncNews();
     }
 
-    // --- 表示切り替え (フッター表示制限修正) ---
     function showPortal() {
         document.getElementById('portal-view').classList.remove('hidden');
-        document.getElementById('global-footer').classList.remove('hidden'); // フッター表示
+        document.getElementById('global-footer').classList.remove('hidden');
         document.getElementById('index-view').classList.add('hidden');
         document.getElementById('thread-view').classList.add('hidden');
         document.getElementById('confirm-view').classList.add('hidden');
@@ -193,18 +201,44 @@
     function openBoard(name) {
         currentBoard = name;
         document.getElementById('portal-view').classList.add('hidden');
-        document.getElementById('global-footer').classList.add('hidden'); // フッター隠す
+        document.getElementById('global-footer').classList.add('hidden');
         document.getElementById('index-view').classList.remove('hidden');
         document.getElementById('thread-view').classList.add('hidden');
         document.getElementById('current-board-name').innerText = name + "板";
-        document.getElementById('board-description-area').innerText = BOARD_INFO[name];
+        
+        // 板概要の取得
+        db.ref('board_settings/' + name + '/description').on('value', snap => {
+            const desc = snap.val() || BOARD_INFO_DEFAULT[name];
+            document.getElementById('board-description-area').innerHTML = processText(desc, false);
+            document.getElementById('board-desc-input').value = desc;
+        });
         renderIndex();
+    }
+
+    function syncSummary() {
+        db.ref('site_settings/summary').on('value', snap => {
+            const text = snap.val() || `mihara BBSは多分世界初のAIで作られた掲示板サイトです。<br>アプデ告知用Twitter（仮）<a href="https://twitter.com/AAA1413070" target="_blank" class="auto-link">https://twitter.com/AAA1413070</a><br><div class="rules">利用規約: 誹謗中傷・エッチ・宣伝・転載その他日本の法律に違反する物は禁止です。本掲示板で発生したトラブル等の責任は負いかねます。</div>`;
+            document.getElementById('site-summary-text').innerHTML = text;
+            document.getElementById('summary-input').value = text.replace(/<br>/g, "\n");
+        });
+    }
+
+    function saveSummary() {
+        if(!isAdmin) return;
+        const text = document.getElementById('summary-input').value.replace(/\n/g, "<br>");
+        db.ref('site_settings/summary').set(text);
+    }
+
+    function saveBoardDesc() {
+        if(!isAdmin || !currentBoard) return;
+        const text = document.getElementById('board-desc-input').value;
+        db.ref('board_settings/' + currentBoard + '/description').set(text);
     }
 
     function showThread(k, t) {
         currentThreadKey = k;
         document.getElementById('index-view').classList.add('hidden');
-        document.getElementById('global-footer').classList.add('hidden'); // フッター隠す
+        document.getElementById('global-footer').classList.add('hidden');
         document.getElementById('thread-view').classList.remove('hidden');
         document.getElementById('view-title').innerText = filterWords(t);
         db.ref('boards/' + currentBoard + '/' + k + '/posts').on('value', renderResponses);
@@ -212,7 +246,6 @@
         window.scrollTo(0,0);
     }
 
-    // --- スレッド一覧描画 (12h削除・最新順) ---
     function renderIndex() {
         const container = document.getElementById('thread-list-container');
         const now = new Date().getTime();
@@ -235,36 +268,19 @@
         });
     }
 
-    // --- レス投稿タイマー (リセット・二重投稿修正) ---
     function handleResInput() {
         const a = document.getElementById('res-content'), b = document.getElementById('btn-post-res'), l = document.getElementById('res-timer-label');
         if(!a || !b) return;
         checkCharLimit('res-content', 'res-char-info');
-
-        // 文字が変更されるたびに既存タイマーを破棄してリセット
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-        }
+        if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
         b.disabled = true;
-
-        if(!a.value.trim()) {
-            l.innerText = "本文を入力してください";
-            return;
-        }
-
+        if(!a.value.trim()) { l.innerText = "本文を入力してください"; return; }
         let s = 3;
         l.innerText = `あと${s}秒で投稿可能`;
         countdownInterval = setInterval(() => {
             s--;
-            if(s > 0) {
-                l.innerText = `あと${s}秒で投稿可能`;
-            } else {
-                l.innerText = "投稿可能";
-                b.disabled = false;
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-            }
+            if(s > 0) { l.innerText = `あと${s}秒で投稿可能`; } 
+            else { l.innerText = "投稿可能"; b.disabled = false; clearInterval(countdownInterval); countdownInterval = null; }
         }, 1000);
     }
 
@@ -273,10 +289,8 @@
         const a = document.getElementById('res-content'), b = document.getElementById('btn-post-res'), l = document.getElementById('res-timer-label');
         const n = isAdmin ? "三原" : (document.getElementById('res-name').value.trim() || DEFAULT_NAMES[currentBoard]);
         const body = a.value, time = new Date().toLocaleString(), file = document.getElementById('res-file').files[0];
-        
-        b.disabled = true; // 即座に無効化
+        b.disabled = true;
         if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
-
         const s = (img) => {
             db.ref('boards/' + currentBoard + '/' + currentThreadKey + '/posts').push({ name: n, date: time, id: myId, body, img: img || "", deleted: false });
             db.ref('boards/' + currentBoard + '/' + currentThreadKey).update({ lastUpdate: time });
@@ -287,13 +301,12 @@
         if(file) { const r = new FileReader(); r.onload = (e) => s(e.target.result); r.readAsDataURL(file); } else s("");
     }
 
-    // --- その他管理者機能等 ---
     function loginAdmin() {
         const e = document.getElementById('admin-email').value, p = document.getElementById('admin-pass').value;
         auth.signInWithEmailAndPassword(e, p).catch(() => alert("ログイン失敗"));
     }
     function logoutAdmin() { auth.signOut(); }
-    function renderPortal() { const p = document.getElementById('board-portal'); p.innerHTML = ""; Object.keys(BOARD_INFO).forEach(n => { const d = document.createElement('div'); d.className="board-card"; d.onclick=()=>openBoard(n); d.innerHTML=`<h2>${n}板</h2>`; p.appendChild(d); }); }
+    function renderPortal() { const p = document.getElementById('board-portal'); p.innerHTML = ""; Object.keys(BOARD_INFO_DEFAULT).forEach(n => { const d = document.createElement('div'); d.className="board-card"; d.onclick=()=>openBoard(n); d.innerHTML=`<h2>${n}板</h2>`; p.appendChild(d); }); }
     function syncNews() { db.ref('site_news').on('value', s => { const d = s.val() || {text:"",date:""}; document.getElementById('news-text').innerText = d.text; document.getElementById('news-date').innerText = "最終更新: "+d.date; }); }
     function saveNews() { db.ref('site_news').set({ text: document.getElementById('news-input').value, date: new Date().toLocaleString() }); }
     function renderResponses(snap) { const list = document.getElementById('res-list'); const posts = Object.entries(snap.val() || {}).map(([k, v]) => ({...v, resKey: k})).sort((a, b) => new Date(a.date) - new Date(b.date)); list.innerHTML = ""; posts.forEach((p, i) => { const num = i + 1; const sid = p.id.replace("ID:", ""); const isB = !!fullBanList[sid]; const div = document.createElement('div'); div.className = "res-item"; div.id = `res-${num}`; div.innerHTML = `<div class="info">${num}：<span class="${p.name==='三原'?'name admin-name':'name'}">${p.name}</span>：${p.date} <b>${p.id}</b></div><div class="res-ops"><span class="op-btn" onclick="insertAnchor(${num})">返信</span>${isAdmin ? `<span class="op-btn admin-op-btn ${isB?'unban-btn':''}" onclick="toggleBan('${p.id}','${currentBoard}','${p.body}')">${isB?'解除':'出禁'}</span>` : ""}${(p.id === myId || isAdmin) ? `<span class="op-btn" onclick="deletePost('${p.resKey}')">削除</span>` : ""}</div>${p.img && !p.deleted ? `<img src="${p.img}" class="uploaded-img">` : ""}<div class="aa">${processText(p.body, p.deleted)}</div>`; list.appendChild(div); }); }
