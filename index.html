@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>mihara BBS</title>
+    <link rel="shortcut icon" href="logo2.png">
+    <link rel="icon" href="logo2.png" type="image/png">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
@@ -66,11 +68,11 @@
         </div>
         <div class="post-form">
             <strong>新規スレッド作成</strong><br>
-            <input type="text" id="new-title" placeholder="タイトル">
+            <input type="text" id="new-title" placeholder="タイトル（30文字以内）" maxlength="30" oninput="validateBtnState('new')">
             <input type="text" id="new-name" placeholder="名前">
             <textarea id="new-content" placeholder="本文" oninput="validateBtnState('new')"></textarea>
             画像を選択: <input type="file" id="new-file" accept="image/*">
-            <button id="btn-to-confirm" class="nav-btn" onclick="showConfirm()" style="width:100%;">投稿前の注意へ</button>
+            <button id="btn-to-confirm" class="nav-btn" onclick="showConfirm()" style="width:100%;" disabled>タイトルと本文を入力してください</button>
         </div>
         <div id="thread-list-container"></div>
     </div>
@@ -134,7 +136,7 @@
             isAdmin = !!user;
             document.getElementById('admin-status').innerText = isAdmin ? "管理者：三原" : "一般モード";
             document.getElementById('login-form').classList.toggle('hidden', isAdmin);
-            document.getElementById('admin-ops').classList.toggle('hidden', !!isAdmin ? false : true);
+            document.getElementById('admin-ops').classList.toggle('hidden', !isAdmin);
             document.querySelectorAll('.edit-tool').forEach(el => el.classList.toggle('hidden', !isAdmin));
             if(isAdmin) loadBanList();
         });
@@ -162,18 +164,41 @@
 
     function validateBtnState(type) {
         const btn = document.getElementById(type === 'new' ? 'btn-to-confirm' : 'btn-post-res');
-        const txt = document.getElementById(type === 'new' ? 'new-content' : 'res-content');
-        if(!btn || !txt) return;
+        if(!btn) return;
         
-        const val = txt.value.trim();
+        const contentVal = document.getElementById(type === 'new' ? 'new-content' : 'res-content').value.trim();
+
         if (isBanned()) { 
             btn.disabled = true; btn.innerText = "BANされている為、投稿出来ません"; 
-        } else if (val === "") { 
-            btn.disabled = true; btn.innerText = (type === 'new' ? "投稿前の注意へ" : "投稿"); 
-        } else if (val.length > 3000) {
-            btn.disabled = true; btn.innerText = "3000文字以内で入力してください";
-        } else { 
-            btn.disabled = false; btn.innerText = (type === 'new' ? "投稿前の注意へ" : "投稿"); 
+            return;
+        }
+
+        if (type === 'new') {
+            const titleVal = document.getElementById('new-title').value.trim();
+            if (titleVal === "" || contentVal === "") {
+                btn.disabled = true;
+                btn.innerText = "タイトルと本文を入力してください";
+            } else if (titleVal.length > 30) {
+                btn.disabled = true;
+                btn.innerText = "タイトルは30文字以内にしてください";
+            } else if (contentVal.length > 3000) {
+                btn.disabled = true;
+                btn.innerText = "3000文字以内で入力してください";
+            } else {
+                btn.disabled = false;
+                btn.innerText = "投稿前の注意へ";
+            }
+        } else if (type === 'res') {
+            if (contentVal === "") {
+                btn.disabled = true;
+                btn.innerText = "投稿";
+            } else if (contentVal.length > 3000) {
+                btn.disabled = true;
+                btn.innerText = "3000文字以内で入力してください";
+            } else {
+                btn.disabled = false;
+                btn.innerText = "投稿";
+            }
         }
     }
 
@@ -283,13 +308,9 @@
         });
 
         const resCount = resEntries.length;
-        const postContainer = document.getElementById('post-area-container');
-        if (resCount >= 500 && postContainer) {
-            postContainer.innerHTML = `
-                <div class="post-form" style="text-align:center;">
-                    <strong style="color:red;">500レスに達した為新たな書き込みが出来ません</strong><br>
-                    <button class="nav-btn" style="width:100%; background:#999; margin-top:10px;" disabled>投稿</button>
-                </div>`;
+        if (resCount >= 500) {
+            const postContainer = document.getElementById('post-area-container');
+            if(postContainer) postContainer.innerHTML = `<div class="post-form" style="text-align:center;"><strong style="color:red;">500レスに達した為新たな書き込みが出来ません</strong></div>`;
         }
     }
 
@@ -302,10 +323,7 @@
 
             Object.keys(data).sort((a,b)=>new Date(data[b].lastUpdate)-new Date(data[a].lastUpdate)).forEach(k => {
                 const threadUpdateDate = new Date(data[k].lastUpdate).getTime();
-                if (now - threadUpdateDate > twelveHours) {
-                    db.ref('boards/' + currentBoard + '/' + k).remove();
-                    return; 
-                }
+                if (now - threadUpdateDate > twelveHours) { db.ref('boards/' + currentBoard + '/' + k).remove(); return; }
 
                 const div = document.createElement('div'); div.className = "thread-link";
                 div.onclick = () => showThread(k, data[k].title);
@@ -327,10 +345,24 @@
     function scrollToRes(n) { const t = document.getElementById(`res-${n}`); if(t) t.scrollIntoView({ behavior: 'smooth' }); }
     function login() { auth.signInWithEmailAndPassword(document.getElementById('admin-email').value, document.getElementById('admin-pass').value).catch(e=>alert("失敗")); }
     function logout() { auth.signOut(); }
-    function showConfirm() { if(isBanned() || !document.getElementById('new-content').value.trim() || document.getElementById('new-content').value.length > 3000) return; hideAll(); document.getElementById('confirm-view').classList.remove('hidden'); 
-        let s = 5; const b = document.getElementById('btn-submit-thread'); b.disabled = true; 
-        const it = setInterval(() => { s--; b.innerText = `同意して作成 (${s})`; if(s<=0){ clearInterval(it); b.disabled = false; b.innerText = "同意して作成"; } }, 1000);
+    
+    function showConfirm() { 
+        const title = document.getElementById('new-title').value.trim();
+        const content = document.getElementById('new-content').value.trim();
+        if(isBanned() || !title || title.length > 30 || !content || content.length > 3000) return; 
+
+        hideAll(); 
+        document.getElementById('confirm-view').classList.remove('hidden'); 
+        let s = 5; 
+        const b = document.getElementById('btn-submit-thread'); 
+        b.disabled = true; 
+        const it = setInterval(() => { 
+            s--; 
+            b.innerText = `同意して作成 (${s})`; 
+            if(s<=0){ clearInterval(it); b.disabled = false; b.innerText = "同意して作成"; } 
+        }, 1000);
     }
+
     function submitNewThread() {
         const title = document.getElementById('new-title').value.trim();
         const body = document.getElementById('new-content').value.trim();
@@ -356,15 +388,9 @@
                 showThread(ref.key, title);
             });
         };
-
-        if (file) {
-            const r = new FileReader();
-            r.onload = (e) => send(e.target.result);
-            r.readAsDataURL(file);
-        } else {
-            send("");
-        }
+        if (file) { const r = new FileReader(); r.onload = (e) => send(e.target.result); r.readAsDataURL(file); } else send("");
     }
+
     function cancelNewThread() { openBoard(currentBoard); }
     function hideAll() { ['portal-view', 'index-view', 'thread-view', 'confirm-view', 'page-footer'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); }); }
     function loadBanList() { db.ref('ban_list').on('value', s => { const list = s.val() || {}; let h = `<table style="width:100%; font-size:10px; border-collapse:collapse; margin-top:10px;"><tr><th>ID</th><th>操作</th></tr>`; Object.entries(list).forEach(([sid, u]) => h += `<tr><td>${u.id}</td><td><button onclick="toggleBan('${u.id}')">解除</button></td></tr>`); document.getElementById('ban-list-display').innerHTML = h + "</table>"; }); }
