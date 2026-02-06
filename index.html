@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>mihara BBS</title>
-    <link rel="shortcut icon" href="logo2.png">
     <link rel="icon" href="logo2.png" type="image/png">
+    <link rel="apple-touch-icon" href="logo2.png">
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
@@ -19,8 +19,6 @@
         .res-ops { position: absolute; top: 10px; right: 5px; display: flex; gap: 5px; }
         .op-btn { color: #666; font-size: 0.75em; cursor: pointer; border: 1px solid #ccc; padding: 2px 8px; background: #f9f9f9; }
         .aa { font-family: "Mona", "MS PGothic", sans-serif; font-size: 16px; line-height: 1.1; white-space: pre-wrap; margin: 10px 0; padding: 10px; border: 1px solid #eee; overflow-x: auto; }
-        .board-card { background: #fff; border: 2px solid #0047bd; padding: 5px 15px; margin-bottom: 10px; cursor: pointer; border-radius: 0; }
-        .board-card h2 { margin: 0; color: #0047bd; font-size: 1.3em; }
         .site-summary, .news-area { background: #fff; border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; font-size: 0.85em; position: relative; }
         .thread-link { background: #fff; border: 1px solid #ccc; padding: 12px; margin-bottom: 8px; cursor: pointer; position: relative; }
         .nav-btn { background: #0047bd; color: #fff; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
@@ -37,6 +35,7 @@
 <div class="container">
     <div id="portal-view">
         <img src="logo.png" style="display:block; max-width:100%; margin:0 auto 10px;">
+        
         <div class="site-summary">
             <div id="site-summary-display" style="white-space: pre-wrap;"></div>
             <div id="site-rules-display" style="color:red; font-weight:bold; margin-top:5px; white-space:pre-wrap;"></div>
@@ -46,6 +45,7 @@
                 <button class="nav-btn" onclick="saveSiteSettings()">設定を保存</button>
             </div>
         </div>
+
         <div class="news-area">
             <strong>お知らせ</strong>
             <div id="news-text" style="white-space: pre-wrap; margin-top:10px;"></div>
@@ -55,17 +55,7 @@
                 <button class="nav-btn" onclick="saveNews()">お知らせ保存</button>
             </div>
         </div>
-        <div id="board-portal"></div>
-    </div>
 
-    <div id="index-view" class="hidden">
-        <button class="nav-btn" onclick="showPortal()">← 板一覧へ</button>
-        <h1 id="current-board-name"></h1>
-        <div id="board-description-area" class="site-summary"></div>
-        <div id="admin-board-edit" class="edit-tool hidden">
-            板概要編集: <textarea id="edit-board-desc"></textarea>
-            <button class="nav-btn" onclick="saveBoardDesc()">板概要保存</button>
-        </div>
         <div class="post-form">
             <strong>新規スレッド作成</strong><br>
             <input type="text" id="new-title" placeholder="タイトル（30文字以内）" maxlength="30" oninput="validateBtnState('new')">
@@ -74,11 +64,12 @@
             画像を選択: <input type="file" id="new-file" accept="image/*">
             <button id="btn-to-confirm" class="nav-btn" onclick="showConfirm()" style="width:100%;" disabled>タイトルと本文を入力してください</button>
         </div>
+
         <div id="thread-list-container"></div>
     </div>
 
     <div id="thread-view" class="hidden">
-        <button class="nav-btn" onclick="openBoard(currentBoard)">← スレッド一覧へ</button>
+        <button class="nav-btn" onclick="showPortal()">← スレッド一覧へ</button>
         <h2 id="view-title" style="color:red;"></h2>
         <div id="res-list"></div>
         <div id="post-area-container"></div>
@@ -87,15 +78,15 @@
     <div id="confirm-view" class="hidden">
         <div style="border:2px solid red; padding:20px; text-align:center;">
             <h3>投稿前の注意</h3>
-            <p>荒らし目的のスレッド作成はおやめ下さい。</p>
+            <p>荒らし目的のスレッド作成はおおやめ下さい。</p>
             <div id="timer-msg" style="font-weight:bold; margin:10px 0;"></div>
             <button id="btn-submit-thread" class="nav-btn" onclick="submitNewThread()">同意して作成</button>
-            <button class="nav-btn" onclick="cancelNewThread()" style="background:#666; margin-left:10px;">戻る</button>
+            <button class="nav-btn" onclick="showPortal()" style="background:#666; margin-left:10px;">戻る</button>
         </div>
     </div>
 
     <footer id="page-footer" class="page-footer">
-        当サイトはリンクフリーです、バナーはご自由にお使い下さい、多分だれも使わんけど。<br>
+        当サイトはリンクフリーです、バナーはご自由にお使い下さい。<br>
         <img src="banner.png" style="width:200px; margin:10px auto; border:1px solid #ccc; display:block;">
         <div id="admin-panel">
             <span id="admin-status">一般モード</span>
@@ -123,10 +114,7 @@
     const db = firebase.database();
     const auth = firebase.auth();
 
-    const BOARD_DEFAULTS = { '雑談': '雑談板です', 'AA絵一次': 'オリジナル板', 'AA絵二次': '二次創作板', 'YMM4': '素材板' };
-    const NAME_DEFAULTS = { '雑談': '名無しの人', 'AA絵一次': '（　´∀｀）', 'AA絵二次': '(´・ω・)', 'YMM4': '名無し饅頭' };
-
-    let currentBoard = "", currentThreadKey = null, isAdmin = false, myId = "", bannedUsers = {};
+    let currentThreadKey = null, isAdmin = false, myId = "", bannedUsers = {};
 
     function init() {
         if (!localStorage.getItem('user_id')) localStorage.setItem('user_id', "ID:" + Math.random().toString(36).substring(2, 10).toUpperCase());
@@ -141,6 +129,22 @@
             if(isAdmin) loadBanList();
         });
 
+        // --- 追加：12時間経過スレッドの自動削除処理 ---
+        db.ref('threads').once('value', (snap) => {
+            const now = Date.now();
+            const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+            const data = snap.val() || {};
+            Object.keys(data).forEach(key => {
+                if (data[key].lastUpdate) {
+                    const lastUp = new Date(data[key].lastUpdate).getTime();
+                    if (now - lastUp > TWELVE_HOURS) {
+                        db.ref('threads/' + key).remove();
+                    }
+                }
+            });
+        });
+        // ------------------------------------------
+
         db.ref('site_settings').on('value', s => {
             const d = s.val() || {};
             document.getElementById('site-summary-display').innerHTML = processText(d.summary || "");
@@ -148,15 +152,17 @@
             document.getElementById('edit-summary').value = d.summary || "";
             document.getElementById('edit-rules').value = d.rules || "";
         });
+
         db.ref('site_news').on('value', s => {
             const d = s.val() || {text:"", date:""};
             document.getElementById('news-text').innerHTML = processText(d.text);
             document.getElementById('news-date').innerText = "最終更新: " + d.date;
             document.getElementById('edit-news').value = d.text;
         });
+
         db.ref('ban_list').on('value', s => { bannedUsers = s.val() || {}; validateBtnState('new'); updatePostArea(); });
 
-        renderPortal();
+        renderThreadList();
         showPortal();
     }
 
@@ -165,7 +171,6 @@
     function validateBtnState(type) {
         const btn = document.getElementById(type === 'new' ? 'btn-to-confirm' : 'btn-post-res');
         if(!btn) return;
-        
         const contentVal = document.getElementById(type === 'new' ? 'new-content' : 'res-content').value.trim();
 
         if (isBanned()) { 
@@ -175,124 +180,49 @@
 
         if (type === 'new') {
             const titleVal = document.getElementById('new-title').value.trim();
-            if (titleVal === "" || contentVal === "") {
-                btn.disabled = true;
-                btn.innerText = "タイトルと本文を入力してください";
+            if (titleVal.length === 0 || contentVal.length === 0) {
+                btn.disabled = true; btn.innerText = "タイトルと本文を入力してください";
             } else if (titleVal.length > 30) {
-                btn.disabled = true;
-                btn.innerText = "タイトルは30文字以内にしてください";
-            } else if (contentVal.length > 3000) {
-                btn.disabled = true;
-                btn.innerText = "3000文字以内で入力してください";
+                btn.disabled = true; btn.innerText = "タイトルが長すぎます（30字まで）";
             } else {
-                btn.disabled = false;
-                btn.innerText = "投稿前の注意へ";
+                btn.disabled = false; btn.innerText = "投稿前の注意へ";
             }
-        } else if (type === 'res') {
-            if (contentVal === "") {
-                btn.disabled = true;
-                btn.innerText = "投稿";
-            } else if (contentVal.length > 3000) {
-                btn.disabled = true;
-                btn.innerText = "3000文字以内で入力してください";
-            } else {
-                btn.disabled = false;
-                btn.innerText = "投稿";
-            }
+        } else {
+            btn.disabled = (contentVal.length === 0);
+            btn.innerText = "投稿";
         }
     }
 
-    function startPostSequence() {
-        if (isBanned()) return;
-        const btn = document.getElementById('btn-post-res');
-        const body = document.getElementById('res-content').value.trim();
-        if(!body || body.length > 3000) return;
-
-        btn.disabled = true;
-        let s = 3;
-        btn.innerText = `投稿中... (${s})`;
-
-        const timer = setInterval(() => {
-            s--;
-            if (s <= 0) {
-                clearInterval(timer);
-                executePost(); 
-            } else {
-                btn.innerText = `投稿中... (${s})`;
-            }
-        }, 1000);
-    }
-
-    function executePost() {
-        const body = document.getElementById('res-content').value.trim();
-        const name = document.getElementById('res-name').value || NAME_DEFAULTS[currentBoard];
-        localStorage.setItem('last_name', name);
-        const file = document.getElementById('res-file').files[0];
-
-        const send = (img) => {
-            db.ref('boards/' + currentBoard + '/' + currentThreadKey + '/posts').push({
-                name: isAdmin ? "三原" : name, date: new Date().toLocaleString(), id: myId,
-                body: body, img: img || "", timestamp: firebase.database.ServerValue.TIMESTAMP, deleted: false
+    function renderThreadList() {
+        db.ref('threads').on('value', (snap) => {
+            const container = document.getElementById('thread-list-container');
+            container.innerHTML = "";
+            const data = snap.val() || {};
+            Object.keys(data).sort((a,b)=>new Date(data[b].lastUpdate)-new Date(data[a].lastUpdate)).forEach(k => {
+                const div = document.createElement('div');
+                div.className = "thread-link";
+                div.onclick = () => showThread(k, data[k].title);
+                div.innerHTML = `<strong>${data[k].title}</strong><br><small>${data[k].lastUpdate}</small>
+                ${isAdmin ? `<span class="op-btn" style="position:absolute; right:10px; top:10px;" onclick="event.stopPropagation(); deleteThread('${k}')">削除</span>`:""}`;
+                container.appendChild(div);
             });
-            db.ref('boards/' + currentBoard + '/' + currentThreadKey).update({ lastUpdate: new Date().toLocaleString() });
-            updatePostArea(); 
-        };
-
-        if(file) { const r = new FileReader(); r.onload = (e) => send(e.target.result); r.readAsDataURL(file); } else send("");
-    }
-
-    function processText(t) {
-        if(!t) return "";
-        return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-                .replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank" class="auto-link">$1</a>')
-                .replace(/&gt;&gt;(\d+)/g, '<span class="auto-link" onclick="scrollToRes($1)">&gt;&gt;$1</span>');
-    }
-
-    function renderPortal() {
-        const p = document.getElementById('board-portal'); p.innerHTML = "";
-        Object.keys(BOARD_DEFAULTS).forEach(n => {
-            const d = document.createElement('div'); d.className = "board-card";
-            d.onclick = () => openBoard(n); d.innerHTML = `<h2>${n}板</h2>`; p.appendChild(d);
         });
     }
 
-    function openBoard(name) {
-        currentBoard = name; hideAll(); document.getElementById('index-view').classList.remove('hidden');
-        document.getElementById('current-board-name').innerText = name + "板";
-        document.getElementById('new-name').value = localStorage.getItem('last_name') || "";
-        db.ref('board_settings/' + name + '/description').on('value', snap => {
-            const desc = snap.val() || BOARD_DEFAULTS[name];
-            document.getElementById('board-description-area').innerHTML = processText(desc);
-            document.getElementById('edit-board-desc').value = desc;
-        });
-        if(isAdmin) document.getElementById('admin-board-edit').classList.remove('hidden');
-        renderIndex();
+    function showThread(k, t) {
+        currentThreadKey = k;
+        hideAll();
+        document.getElementById('thread-view').classList.remove('hidden');
+        document.getElementById('view-title').innerText = t;
+        db.ref('threads/' + k + '/posts').on('value', renderResponses);
+        updatePostArea();
     }
 
-    function updatePostArea() {
-        const area = document.getElementById('post-area-container');
-        if(!area) return;
-        area.innerHTML = `<div class="post-form">
-            <input type="text" id="res-name" placeholder="名前" value="${localStorage.getItem('last_name') || ''}">
-            <textarea id="res-content" placeholder="本文" oninput="validateBtnState('res')"></textarea>
-            画像を選択: <input type="file" id="res-file" accept="image/*">
-            <button id="btn-post-res" class="nav-btn" onclick="startPostSequence()" style="width:100%;" disabled>投稿</button>
-        </div>`;
-        validateBtnState('res');
-    }
-
-    function saveSiteSettings() { db.ref('site_settings').update({ summary: document.getElementById('edit-summary').value, rules: document.getElementById('edit-rules').value }).then(() => alert("保存")); }
-    function saveNews() { db.ref('site_news').set({ text: document.getElementById('edit-news').value, date: new Date().toLocaleString() }).then(() => alert("更新")); }
-    function saveBoardDesc() { db.ref('board_settings/' + currentBoard + '/description').set(document.getElementById('edit-board-desc').value).then(() => alert("保存")); }
-    
-    function showPortal() { hideAll(); document.getElementById('portal-view').classList.remove('hidden'); document.getElementById('page-footer').classList.remove('hidden'); }
-    function showThread(k, t) { currentThreadKey = k; hideAll(); document.getElementById('thread-view').classList.remove('hidden'); document.getElementById('view-title').innerText = t; db.ref('boards/' + currentBoard + '/' + k + '/posts').on('value', renderResponses); updatePostArea(); }
-    
     function renderResponses(snap) {
-        const list = document.getElementById('res-list'); list.innerHTML = "";
+        const list = document.getElementById('res-list');
+        list.innerHTML = "";
         const data = snap.val() || {};
         const resEntries = Object.entries(data).sort((a,b)=>a[1].timestamp - b[1].timestamp);
-
         resEntries.forEach(([k, p], i) => {
             const num = i + 1;
             const div = document.createElement('div'); div.className = "res-item"; div.id = `res-${num}`;
@@ -306,72 +236,23 @@
                 </div>`;
             list.appendChild(div);
         });
-
-        const resCount = resEntries.length;
-        if (resCount >= 500) {
-            const postContainer = document.getElementById('post-area-container');
-            if(postContainer) postContainer.innerHTML = `<div class="post-form" style="text-align:center;"><strong style="color:red;">500レスに達した為新たな書き込みが出来ません</strong></div>`;
+        if (resEntries.length >= 500) {
+            const postArea = document.getElementById('post-area-container');
+            if(postArea) postArea.innerHTML = `<div class="post-form" style="text-align:center;"><strong style="color:red;">500レスに達した為新たな書き込みが出来ません</strong></div>`;
         }
-    }
-
-    function renderIndex() {
-        db.ref('boards/' + currentBoard).on('value', (snap) => {
-            const container = document.getElementById('thread-list-container'); container.innerHTML = "";
-            const data = snap.val() || {};
-            const now = Date.now();
-            const twelveHours = 12 * 60 * 60 * 1000;
-
-            Object.keys(data).sort((a,b)=>new Date(data[b].lastUpdate)-new Date(data[a].lastUpdate)).forEach(k => {
-                const threadUpdateDate = new Date(data[k].lastUpdate).getTime();
-                if (now - threadUpdateDate > twelveHours) { db.ref('boards/' + currentBoard + '/' + k).remove(); return; }
-
-                const div = document.createElement('div'); div.className = "thread-link";
-                div.onclick = () => showThread(k, data[k].title);
-                div.innerHTML = `<strong>${data[k].title}</strong><br><small>${data[k].lastUpdate}</small>
-                ${isAdmin ? `<span class="op-btn" style="position:absolute; right:10px; top:10px;" onclick="event.stopPropagation(); deleteThread('${k}')">削除</span>`:""}`;
-                container.appendChild(div);
-            });
-        });
-    }
-
-    function deletePost(k) { if(confirm("本当に削除しますか？")) db.ref('boards/'+currentBoard+'/'+currentThreadKey+'/posts/'+k).update({deleted:true,body:"削除されました",img:""}); }
-    function deleteThread(k) { if(confirm("スレッドを削除しますか？")) db.ref('boards/'+currentBoard+'/'+k).remove(); }
-    function toggleBan(tid, summary) {
-        const sid = tid.replace("ID:","");
-        if(bannedUsers[sid]) { if(confirm("解除？")) db.ref('ban_list/'+sid).remove(); }
-        else { if(confirm("出禁？")) db.ref('ban_list/'+sid).set({id:tid, date:new Date().toLocaleString(), content:summary}); }
-    }
-    function insertAnchor(n) { const tx = document.getElementById('res-content'); if(tx) { tx.value = `>>${n}\n` + tx.value; tx.focus(); validateBtnState('res'); } }
-    function scrollToRes(n) { const t = document.getElementById(`res-${n}`); if(t) t.scrollIntoView({ behavior: 'smooth' }); }
-    function login() { auth.signInWithEmailAndPassword(document.getElementById('admin-email').value, document.getElementById('admin-pass').value).catch(e=>alert("失敗")); }
-    function logout() { auth.signOut(); }
-    
-    function showConfirm() { 
-        const title = document.getElementById('new-title').value.trim();
-        const content = document.getElementById('new-content').value.trim();
-        if(isBanned() || !title || title.length > 30 || !content || content.length > 3000) return; 
-
-        hideAll(); 
-        document.getElementById('confirm-view').classList.remove('hidden'); 
-        let s = 5; 
-        const b = document.getElementById('btn-submit-thread'); 
-        b.disabled = true; 
-        const it = setInterval(() => { 
-            s--; 
-            b.innerText = `同意して作成 (${s})`; 
-            if(s<=0){ clearInterval(it); b.disabled = false; b.innerText = "同意して作成"; } 
-        }, 1000);
     }
 
     function submitNewThread() {
         const title = document.getElementById('new-title').value.trim();
         const body = document.getElementById('new-content').value.trim();
-        const name = document.getElementById('new-name').value || NAME_DEFAULTS[currentBoard];
+        if(!title || !body || isBanned()) return;
+
+        const name = document.getElementById('new-name').value || "名無しの人";
         localStorage.setItem('last_name', name);
         const file = document.getElementById('new-file').files[0];
 
         const send = (img) => {
-            const ref = db.ref('boards/'+currentBoard).push();
+            const ref = db.ref('threads').push();
             ref.set({title, lastUpdate: new Date().toLocaleString()}).then(() => {
                 ref.child('posts').push({
                     name: isAdmin ? "三原" : name,
@@ -384,15 +265,88 @@
                 });
                 document.getElementById('new-title').value = "";
                 document.getElementById('new-content').value = "";
-                document.getElementById('new-file').value = "";
                 showThread(ref.key, title);
             });
         };
         if (file) { const r = new FileReader(); r.onload = (e) => send(e.target.result); r.readAsDataURL(file); } else send("");
     }
 
-    function cancelNewThread() { openBoard(currentBoard); }
-    function hideAll() { ['portal-view', 'index-view', 'thread-view', 'confirm-view', 'page-footer'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); }); }
+    function updatePostArea() {
+        const area = document.getElementById('post-area-container');
+        if(!area) return;
+        area.innerHTML = `<div class="post-form">
+            <input type="text" id="res-name" placeholder="名前" value="${localStorage.getItem('last_name') || ''}">
+            <textarea id="res-content" placeholder="本文" oninput="validateBtnState('res')"></textarea>
+            画像を選択: <input type="file" id="res-file" accept="image/*">
+            <button id="btn-post-res" class="nav-btn" onclick="startPostSequence()" style="width:100%;" disabled>投稿</button>
+        </div>`;
+    }
+
+    function startPostSequence() {
+        const btn = document.getElementById('btn-post-res');
+        const body = document.getElementById('res-content').value.trim();
+        if(!body || isBanned()) return;
+        btn.disabled = true;
+        let s = 3;
+        const timer = setInterval(() => {
+            s--;
+            btn.innerText = `投稿中... (${s})`;
+            if (s <= 0) { clearInterval(timer); executePost(); }
+        }, 1000);
+    }
+
+    function executePost() {
+        const body = document.getElementById('res-content').value.trim();
+        const name = document.getElementById('res-name').value || "名無しの人";
+        localStorage.setItem('last_name', name);
+        const file = document.getElementById('res-file').files[0];
+        const send = (img) => {
+            db.ref('threads/' + currentThreadKey + '/posts').push({
+                name: isAdmin ? "三原" : name, date: new Date().toLocaleString(), id: myId,
+                body: body, img: img || "", timestamp: firebase.database.ServerValue.TIMESTAMP, deleted: false
+            });
+            db.ref('threads/' + currentThreadKey).update({ lastUpdate: new Date().toLocaleString() });
+            updatePostArea(); 
+        };
+        if(file) { const r = new FileReader(); r.onload = (e) => send(e.target.result); r.readAsDataURL(file); } else send("");
+    }
+
+    function processText(t) {
+        if(!t) return "";
+        return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+                .replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank" class="auto-link">$1</a>')
+                .replace(/&gt;&gt;(\d+)/g, '<span class="auto-link" onclick="scrollToRes($1)">&gt;&gt;$1</span>');
+    }
+
+    function deletePost(k) { if(confirm("本当に削除しますか？")) db.ref('threads/'+currentThreadKey+'/posts/'+k).update({deleted:true,body:"削除されました",img:""}); }
+    function deleteThread(k) { if(confirm("スレッドを削除しますか？")) db.ref('threads/'+k).remove(); }
+    function toggleBan(tid, summary) {
+        const sid = tid.replace("ID:","");
+        if(bannedUsers[sid]) { if(confirm("解除？")) db.ref('ban_list/'+sid).remove(); }
+        else { if(confirm("出禁？")) db.ref('ban_list/'+sid).set({id:tid, date:new Date().toLocaleString(), content:summary}); }
+    }
+    function insertAnchor(n) { const tx = document.getElementById('res-content'); if(tx) { tx.value = `>>${n}\n` + tx.value; tx.focus(); validateBtnState('res'); } }
+    function scrollToRes(n) { const t = document.getElementById(`res-${n}`); if(t) t.scrollIntoView({ behavior: 'smooth' }); }
+    function login() { auth.signInWithEmailAndPassword(document.getElementById('admin-email').value, document.getElementById('admin-pass').value).catch(e=>alert("失敗")); }
+    function logout() { auth.signOut(); }
+    function saveSiteSettings() { db.ref('site_settings').update({ summary: document.getElementById('edit-summary').value, rules: document.getElementById('edit-rules').value }).then(() => alert("保存")); }
+    function saveNews() { db.ref('site_news').set({ text: document.getElementById('edit-news').value, date: new Date().toLocaleString() }).then(() => alert("更新")); }
+    function showPortal() { hideAll(); document.getElementById('portal-view').classList.remove('hidden'); document.getElementById('page-footer').classList.remove('hidden'); }
+    function hideAll() { ['portal-view', 'thread-view', 'confirm-view', 'page-footer'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); }); }
+    function showConfirm() { 
+        const title = document.getElementById('new-title').value.trim();
+        const content = document.getElementById('new-content').value.trim();
+        if(!title || !content || title.length > 30 || isBanned()) return; 
+        hideAll(); 
+        document.getElementById('confirm-view').classList.remove('hidden'); 
+        let s = 5; 
+        const b = document.getElementById('btn-submit-thread'); 
+        b.disabled = true; 
+        const it = setInterval(() => { 
+            s--; b.innerText = `同意して作成 (${s})`; 
+            if(s<=0){ clearInterval(it); b.disabled = false; b.innerText = "同意して作成"; } 
+        }, 1000);
+    }
     function loadBanList() { db.ref('ban_list').on('value', s => { const list = s.val() || {}; let h = `<table style="width:100%; font-size:10px; border-collapse:collapse; margin-top:10px;"><tr><th>ID</th><th>操作</th></tr>`; Object.entries(list).forEach(([sid, u]) => h += `<tr><td>${u.id}</td><td><button onclick="toggleBan('${u.id}')">解除</button></td></tr>`); document.getElementById('ban-list-display').innerHTML = h + "</table>"; }); }
 
     window.onload = init;
